@@ -42,3 +42,12 @@ foreign_toplevel_destroy(struct foreign_toplevel *toplevel)
 	ext_foreign_toplevel_finish(&toplevel->ext_toplevel);
 	free(toplevel);
 }
+
+struct wlr_foreign_toplevel_handle_v1 *
+foreign_toplevel_get_handle(struct foreign_toplevel *toplevel)
+{
+	if (!toplevel) {
+		return NULL;
+	}
+	return toplevel->wlr_toplevel.handle;
+}

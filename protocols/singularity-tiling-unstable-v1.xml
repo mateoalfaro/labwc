@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="singularity_tiling_unstable_v1">
+  <copyright>
+    Copyright © 2024 Singularity Desktop
+  </copyright>
+
+  <interface name="zsingularity_tiling_manager_v1" version="1">
+    <description summary="tiling window management">
+      This interface allows a client to manage window geometry for tiling purposes.
+    </description>
+
+    <request name="set_geometry">
+      <description summary="set window geometry">
+        Sets the geometry of a toplevel window.
+      </description>
+      <arg name="toplevel" type="object" interface="zwlr_foreign_toplevel_handle_v1"/>
+      <arg name="x" type="int"/>
+      <arg name="y" type="int"/>
+      <arg name="width" type="int"/>
+      <arg name="height" type="int"/>
+    </request>
+    
+    <request name="set_tiled">
+      <description summary="set tiled state">
+        Sets the tiled state of a window (removes decorations etc).
+      </description>
+      <arg name="toplevel" type="object" interface="zwlr_foreign_toplevel_handle_v1"/>
+      <arg name="tiled" type="uint"/>
+    </request>
+
+    <enum name="snap_direction">
+      <entry name="none" value="0"/>
+      <entry name="left" value="1"/>
+      <entry name="right" value="2"/>
+      <entry name="top" value="3"/>
+      <entry name="bottom" value="4"/>
+      <entry name="top_left" value="5"/>
+      <entry name="top_right" value="6"/>
+      <entry name="bottom_left" value="7"/>
+      <entry name="bottom_right" value="8"/>
+      <entry name="maximize" value="9"/>
+    </enum>
+
+    <request name="snap_view">
+      <description summary="snap view to edge">
+        Snaps the view to a screen edge using internal compositor logic.
+      </description>
+      <arg name="toplevel" type="object" interface="zwlr_foreign_toplevel_handle_v1"/>
+      <arg name="direction" type="uint" enum="snap_direction"/>
+    </request>
+  </interface>
+</protocol>

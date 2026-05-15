@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="singularity_preview_unstable_v1">
+  <copyright>
+    Copyright © 2024 Singularity Desktop
+  </copyright>
+
+  <interface name="zsingularity_preview_manager_v1" version="1">
+    <description summary="manager to capture window previews">
+      This interface allows a client to capture the contents of a toplevel window.
+    </description>
+
+    <request name="capture_toplevel">
+      <description summary="capture a toplevel window">
+        Create a capture session for the given toplevel window.
+      </description>
+      <arg name="frame" type="new_id" interface="zsingularity_preview_frame_v1"/>
+      <arg name="toplevel" type="object" interface="zwlr_foreign_toplevel_handle_v1"/>
+      <arg name="overlay_cursor" type="int" summary="include cursor in capture"/>
+    </request>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroy the manager">
+        All objects created by the manager will remain valid.
+      </description>
+    </request>
+  </interface>
+
+  <interface name="zsingularity_preview_frame_v1" version="1">
+    <description summary="a single capture frame">
+      This object represents a single capture of a window.
+    </description>
+
+    <event name="buffer">
+      <description summary="buffer information">
+        Provides information about the buffer format and dimensions.
+        This event is sent before the ready event.
+      </description>
+      <arg name="format" type="uint" summary="buffer format (DRM_FORMAT code)"/>
+      <arg name="width" type="uint" summary="buffer width"/>
+      <arg name="height" type="uint" summary="buffer height"/>
+      <arg name="stride" type="uint" summary="buffer stride"/>
+    </event>
+
+    <request name="copy">
+      <description summary="copy the frame to a buffer">
+        Copy the captured frame to the provided buffer.
+        The buffer must be valid and have the correct dimensions and format.
+      </description>
+      <arg name="buffer" type="object" interface="wl_buffer"/>
+    </request>
+
+    <event name="flags">
+      <description summary="frame flags">
+        Provides flags about the capture (e.g. y-invert).
+      </description>
+      <arg name="flags" type="uint" enum="flags"/>
+    </event>
+
+    <enum name="flags">
+      <entry name="y_invert" value="1" summary="contents are y-inverted"/>
+    </enum>
+
+    <event name="ready">
+      <description summary="capture completed">
+        Called when the copy is complete.
+      </description>
+    </event>
+
+    <event name="failed">
+      <description summary="capture failed">
+        Called if the capture fails (e.g. window destroyed).
+      </description>
+    </event>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroy the frame">
+        Destroys the frame object.
+      </description>
+    </request>
+  </interface>
+</protocol>

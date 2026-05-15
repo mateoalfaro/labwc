@@ -8,6 +8,7 @@
 #include "common/mem.h"
 #include "magnifier.h"
 #include "output.h"
+#include "protocols/singularity-blur.h"
 
 struct wlr_surface *
 lab_wlr_surface_from_node(struct wlr_scene_node *node)
@@ -130,6 +131,10 @@ lab_wlr_scene_output_commit(struct wlr_scene_output *scene_output,
 	struct wlr_box additional_damage = {0};
 	if (state->buffer && magnifier_is_enabled()) {
 		magnifier_draw(output, state->buffer, &additional_damage);
+	}
+
+	if (state->buffer) {
+		singularity_blur_render(output, state->buffer);
 	}
 
 	bool committed = wlr_output_commit_state(wlr_output, state);

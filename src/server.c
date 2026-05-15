@@ -76,6 +76,10 @@
 #include "workspaces.h"
 #include "xwayland.h"
 
+void singularity_preview_init(void);
+void singularity_tiling_init(void);
+void singularity_blur_init(void);
+
 #define LAB_EXT_DATA_CONTROL_VERSION 1
 #define LAB_EXT_FOREIGN_TOPLEVEL_LIST_VERSION 1
 #define LAB_WLR_COMPOSITOR_VERSION 6
@@ -716,6 +720,10 @@ server_init(void)
 	server.foreign_toplevel_list =
 		wlr_ext_foreign_toplevel_list_v1_create(
 			server.wl_display, LAB_EXT_FOREIGN_TOPLEVEL_LIST_VERSION);
+
+	singularity_preview_init();
+	singularity_tiling_init();
+	singularity_blur_init();
 
 	wlr_alpha_modifier_v1_create(server.wl_display);
 

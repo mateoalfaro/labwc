@@ -19,6 +19,7 @@
 #include "common/scene-helpers.h"
 #include "config/rcxml.h"
 #include "input/keyboard.h"
+#include "foreign-toplevel/foreign.h"
 #include "labwc.h"
 #include "output.h"
 #include "show-desktop.h"
@@ -220,6 +221,18 @@ handle_ext_workspace_commit(struct wl_listener *listener, void *data)
 			struct workspace *workspace = req->activate.workspace->data;
 			workspaces_switch_to(workspace, /* update_focus */ true);
 			wlr_log(WLR_INFO, "activating workspace %s", workspace->name);
+		} else if (req->type == WLR_EXT_WORKSPACE_V1_REQUEST_ASSIGN) {
+			struct workspace *workspace = req->assign.workspace->data;
+			struct wlr_foreign_toplevel_handle_v1 *toplevel_handle = req->assign.toplevel;
+			struct view *view;
+			wl_list_for_each(view, &server.views, link) {
+				struct wlr_foreign_toplevel_handle_v1 *handle =
+					foreign_toplevel_get_handle(view->foreign_toplevel);
+				if (handle == toplevel_handle) {
+					view_move_to_workspace(view, workspace);
+					break;
+				}
+			}
 		}
 	}
 }
