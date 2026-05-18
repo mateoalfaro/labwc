@@ -16,6 +16,7 @@ wayland_scanner_server = generator(
 server_protocols = [
 	'wlr-layer-shell-unstable-v1.xml',
 	'wlr-output-power-management-unstable-v1.xml',
+	'wlr-foreign-toplevel-management-unstable-v1.xml',
 	'singularity-preview-unstable-v1.xml',
 	'singularity-tiling-unstable-v1.xml',
 	'singularity-blur-unstable-v1.xml',
