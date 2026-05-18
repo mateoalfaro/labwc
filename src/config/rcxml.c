@@ -1236,6 +1236,12 @@ entry(xmlNode *node, char *nodename, char *content)
 		 * if we decide to also support "application".
 		 */
 		rc.kb_layout_per_window = !strcasecmp(content, "window");
+	} else if (!strcasecmp(nodename, "layout.xkb.keyboard")) {
+		setenv("XKB_DEFAULT_LAYOUT", content, 1);
+	} else if (!strcasecmp(nodename, "variant.xkb.keyboard")) {
+		setenv("XKB_DEFAULT_VARIANT", content, 1);
+	} else if (!strcasecmp(nodename, "options.xkb.keyboard")) {
+		setenv("XKB_DEFAULT_OPTIONS", content, 1);
 	} else if (!strcasecmp(nodename, "screenEdgeStrength.resistance")) {
 		rc.screen_edge_strength = atoi(content);
 	} else if (!strcasecmp(nodename, "windowEdgeStrength.resistance")) {
