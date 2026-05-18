@@ -70,7 +70,7 @@ static void manager_handle_snap_view(struct wl_client *client, struct wl_resourc
         case ZSINGULARITY_TILING_MANAGER_V1_SNAP_DIRECTION_BOTTOM_RIGHT: edge = LAB_EDGE_BOTTOM | LAB_EDGE_RIGHT; break;
         case ZSINGULARITY_TILING_MANAGER_V1_SNAP_DIRECTION_MAXIMIZE: 
             wlr_log(WLR_INFO, "[TILING-PROTO] Maximizing view");
-            view_maximize(view, VIEW_AXIS_BOTH, true);
+            view_maximize(view, VIEW_AXIS_BOTH);
             return;
     }
 
