@@ -76,7 +76,7 @@ static void manager_handle_snap_view(struct wl_client *client, struct wl_resourc
 
     if (edge != LAB_EDGE_NONE) {
         wlr_log(WLR_INFO, "[TILING-PROTO] Snapping to edge: %d", edge);
-        view_snap_to_edge(view, edge, false, false, true);
+        view_snap_to_edge(view, edge, false, false);
     } else {
         wlr_log(WLR_INFO, "[TILING-PROTO] No valid edge found for direction %u", direction);
     }
