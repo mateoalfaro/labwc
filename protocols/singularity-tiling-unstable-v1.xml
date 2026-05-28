@@ -4,10 +4,34 @@
     Copyright © 2024 Singularity Desktop
   </copyright>
 
-  <interface name="zsingularity_tiling_manager_v1" version="1">
+  <interface name="zsingularity_tiling_manager_v1" version="2">
     <description summary="tiling window management">
       This interface allows a client to manage window geometry for tiling purposes.
     </description>
+
+    <request name="get_geometry">
+      <description summary="query window geometry">
+        Requests the current geometry of a toplevel. The compositor replies
+        with a single "geometry" event for that toplevel. Used by session
+        save to capture exact window position/size/output.
+      </description>
+      <arg name="toplevel" type="object" interface="zwlr_foreign_toplevel_handle_v1"/>
+    </request>
+
+    <event name="geometry">
+      <description summary="reported window geometry">
+        Sent in response to get_geometry. output is the connector name
+        (e.g. "DP-2"); maximized/fullscreen are 0/1.
+      </description>
+      <arg name="toplevel" type="object" interface="zwlr_foreign_toplevel_handle_v1"/>
+      <arg name="x" type="int"/>
+      <arg name="y" type="int"/>
+      <arg name="width" type="int"/>
+      <arg name="height" type="int"/>
+      <arg name="maximized" type="uint"/>
+      <arg name="fullscreen" type="uint"/>
+      <arg name="output" type="string"/>
+    </event>
 
     <request name="set_geometry">
       <description summary="set window geometry">

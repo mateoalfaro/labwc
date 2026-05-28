@@ -195,6 +195,15 @@ wlr_foreign_toplevel_init(struct wlr_foreign_toplevel *wlr_toplevel,
 		return;
 	}
 
+	/*
+	 * Singularity's custom protocols (singularity-preview, singularity-tiling)
+	 * resolve the owning view from the foreign-toplevel handle via
+	 * `handle->data`. The upstream foreign-toplevel refactor stopped setting
+	 * this, which silently broke window previews (Alt+Tab / workspaces) and
+	 * tiling-by-handle. Restore the contract.
+	 */
+	wlr_toplevel->handle->data = view;
+
 	/* These states may be set before the initial map */
 	handle_new_app_id(&wlr_toplevel->on_view.new_app_id, NULL);
 	handle_new_title(&wlr_toplevel->on_view.new_title, NULL);

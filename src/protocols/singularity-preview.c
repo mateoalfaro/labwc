@@ -234,17 +234,6 @@ static void manager_handle_capture_toplevel(struct wl_client *client, struct wl_
         frame->width = box.width;
         frame->height = box.height;
     }
-    if (frame->width > 640 || frame->height > 360) {
-        double scale = (double)frame->width / 640.0;
-        double hscale = (double)frame->height / 360.0;
-        if (hscale > scale) {
-            scale = hscale;
-        }
-        frame->width = (uint32_t)((double)frame->width / scale);
-        frame->height = (uint32_t)((double)frame->height / scale);
-        if (frame->width < 1) frame->width = 1;
-        if (frame->height < 1) frame->height = 1;
-    }
     frame->stride = frame->width * 4;
 
     if (preview_debug_enabled()) {
