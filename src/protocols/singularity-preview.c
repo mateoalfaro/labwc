@@ -53,6 +53,29 @@ static void handle_view_destroy(struct wl_listener *listener, void *data) {
     wl_list_init(&frame->view_destroy.link);
 }
 
+struct largest_surface_ctx {
+    struct wlr_surface *surface;
+    int area;
+};
+
+static void find_largest_surface(struct wlr_surface *surface, int sx, int sy, void *data) {
+    (void)sx;
+    (void)sy;
+    struct largest_surface_ctx *ctx = data;
+    if (!wlr_surface_has_buffer(surface)) {
+        return;
+    }
+    struct wlr_texture *texture = wlr_surface_get_texture(surface);
+    if (!texture) {
+        return;
+    }
+    int area = (int)texture->width * (int)texture->height;
+    if (area >= ctx->area) {
+        ctx->area = area;
+        ctx->surface = surface;
+    }
+}
+
 static void frame_handle_copy(struct wl_client *client, struct wl_resource *resource, struct wl_resource *buffer_resource) {
     struct singularity_preview_frame *frame = wl_resource_get_user_data(resource);
     if (!frame || !frame->view) {
@@ -80,22 +103,23 @@ static void frame_handle_copy(struct wl_client *client, struct wl_resource *reso
     wlr_buffer_lock(buffer);
 
     struct wlr_surface *surface = view->surface;
-    if (surface && wlr_surface_has_buffer(surface)) {
-        struct wlr_texture *texture = wlr_surface_get_texture(surface);
+    struct largest_surface_ctx best = { .surface = NULL, .area = 0 };
+    if (surface) {
+        wlr_surface_for_each_surface(surface, find_largest_surface, &best);
+    }
+    if (best.surface) {
+        struct wlr_texture *texture = wlr_surface_get_texture(best.surface);
         if (texture) {
             void *data;
             uint32_t format;
             size_t stride;
-            
-            // Clamp request to texture size AND buffer size to be absolutely safe
-            int rw = (int)frame->width;
-            int rh = (int)frame->height;
-            if ((int)texture->width < rw) rw = (int)texture->width;
-            if ((int)texture->height < rh) rh = (int)texture->height;
+
+            int rw = (int)texture->width;
+            int rh = (int)texture->height;
             if (buffer->width < rw) rw = buffer->width;
             if (buffer->height < rh) rh = buffer->height;
 
-            if (rw > 0 && rh > 0 && rw == (int)texture->width && rh == (int)texture->height &&
+            if (rw > 0 && rh > 0 &&
                     wlr_buffer_begin_data_ptr_access(buffer, WLR_BUFFER_DATA_PTR_ACCESS_WRITE, &data, &format, &stride)) {
                 struct wlr_texture_read_pixels_options options = {
                     .data = data,
