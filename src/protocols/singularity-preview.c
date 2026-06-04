@@ -6,12 +6,9 @@
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/util/box.h>
-#include <wlr/render/swapchain.h>
-#include <wlr/types/wlr_output.h>
 #include "singularity-preview-unstable-v1-protocol.h"
 #include "labwc.h"
 #include "view.h"
-#include "output.h"
 
 struct singularity_preview_manager {
     struct wl_global *global;
@@ -56,40 +53,6 @@ static void handle_view_destroy(struct wl_listener *listener, void *data) {
     wl_list_init(&frame->view_destroy.link);
 }
 
-struct preview_render_ctx {
-    struct wlr_render_pass *pass;
-    double scale_x;
-    double scale_y;
-};
-
-static void preview_render_surface(struct wlr_surface *surf, int sx, int sy, void *data) {
-    struct preview_render_ctx *ctx = data;
-    if (!wlr_surface_has_buffer(surf)) {
-        return;
-    }
-    struct wlr_texture *texture = wlr_surface_get_texture(surf);
-    if (!texture) {
-        return;
-    }
-    int dw = (int)(surf->current.width * ctx->scale_x + 0.5);
-    int dh = (int)(surf->current.height * ctx->scale_y + 0.5);
-    if (dw <= 0 || dh <= 0) {
-        return;
-    }
-    wlr_render_pass_add_texture(ctx->pass, &(struct wlr_render_texture_options){
-        .texture = texture,
-        .src_box = { .width = texture->width, .height = texture->height },
-        .dst_box = {
-            .x = (int)(sx * ctx->scale_x + 0.5),
-            .y = (int)(sy * ctx->scale_y + 0.5),
-            .width = dw,
-            .height = dh,
-        },
-        .filter_mode = WLR_SCALE_FILTER_BILINEAR,
-    });
-}
-
-
 static void frame_handle_copy(struct wl_client *client, struct wl_resource *resource, struct wl_resource *buffer_resource) {
     struct singularity_preview_frame *frame = wl_resource_get_user_data(resource);
     if (!frame || !frame->view) {
@@ -113,106 +76,79 @@ static void frame_handle_copy(struct wl_client *client, struct wl_resource *reso
         return;
     }
 
-    struct wlr_surface *surface = view->surface;
-    if (!surface) {
-        wlr_log(WLR_ERROR, "[PREVIEW] Copy failed: view has no surface");
-        zsingularity_preview_frame_v1_send_failed(resource);
-        return;
-    }
-
-    struct output *output = view->output;
-    if (!output || !output->wlr_output || !output->wlr_output->swapchain) {
-        wlr_log(WLR_ERROR, "[PREVIEW] Copy failed: view has no output");
-        zsingularity_preview_frame_v1_send_failed(resource);
-        return;
-    }
-
-    int base_w = view->current.width;
-    int base_h = view->current.height;
-    if (base_w <= 0 || base_h <= 0) {
-        base_w = (int)surface->current.width;
-        base_h = (int)surface->current.height;
-    }
-    if (base_w <= 0 || base_h <= 0) {
-        wlr_log(WLR_ERROR, "[PREVIEW] Copy failed: view has no size");
-        zsingularity_preview_frame_v1_send_failed(resource);
-        return;
-    }
-
+    // Explicitly lock the buffer to prevent it from being freed during our access
     wlr_buffer_lock(buffer);
 
-    struct wlr_buffer *gpu = wlr_allocator_create_buffer(server.allocator,
-        buffer->width, buffer->height, &output->wlr_output->swapchain->format);
-    if (!gpu) {
-        wlr_log(WLR_ERROR, "[PREVIEW] Copy failed: could not allocate render buffer");
+    struct wlr_surface *surface = view->surface;
+    if (surface && wlr_surface_has_buffer(surface)) {
+        struct wlr_texture *texture = wlr_surface_get_texture(surface);
+        if (texture) {
+            void *data;
+            uint32_t format;
+            size_t stride;
+            
+            // Clamp request to texture size AND buffer size to be absolutely safe
+            int rw = (int)frame->width;
+            int rh = (int)frame->height;
+            if ((int)texture->width < rw) rw = (int)texture->width;
+            if ((int)texture->height < rh) rh = (int)texture->height;
+            if (buffer->width < rw) rw = buffer->width;
+            if (buffer->height < rh) rh = buffer->height;
+
+            if (rw > 0 && rh > 0 && rw == (int)texture->width && rh == (int)texture->height &&
+                    wlr_buffer_begin_data_ptr_access(buffer, WLR_BUFFER_DATA_PTR_ACCESS_WRITE, &data, &format, &stride)) {
+                struct wlr_texture_read_pixels_options options = {
+                    .data = data,
+                    .format = format,
+                    .stride = (uint32_t)stride,
+                    .src_box = { .width = rw, .height = rh },
+                };
+                if (wlr_texture_read_pixels(texture, &options)) {
+                    wlr_buffer_end_data_ptr_access(buffer);
+                    wlr_buffer_unlock(buffer);
+                    zsingularity_preview_frame_v1_send_ready(resource);
+                    return;
+                }
+                wlr_buffer_end_data_ptr_access(buffer);
+            }
+        }
+    }
+
+    // Fallback to renderer pass if read_pixels fails or isn't available
+    struct wlr_render_pass *pass = wlr_renderer_begin_buffer_pass(renderer, buffer, NULL);
+    if (pass) {
+        wlr_render_pass_add_rect(pass, &(struct wlr_render_rect_options){
+            .box = { .width = buffer->width, .height = buffer->height },
+            .color = { .r = 0, .g = 0, .b = 0, .a = 0 }
+        });
+
+        if (surface && wlr_surface_has_buffer(surface)) {
+            struct wlr_texture *texture = wlr_surface_get_texture(surface);
+            if (texture) {
+                int rw = (int)frame->width;
+                int rh = (int)frame->height;
+                if (buffer->width < rw) rw = buffer->width;
+                if (buffer->height < rh) rh = buffer->height;
+
+                if (rw > 0 && rh > 0) {
+                    wlr_render_pass_add_texture(pass, &(struct wlr_render_texture_options){
+                        .texture = texture,
+                        .src_box = { .width = texture->width, .height = texture->height },
+                        .dst_box = { .width = rw, .height = rh },
+                        .filter_mode = WLR_SCALE_FILTER_BILINEAR,
+                    });
+                }
+            }
+        }
+        wlr_render_pass_submit(pass);
         wlr_buffer_unlock(buffer);
-        zsingularity_preview_frame_v1_send_failed(resource);
-        return;
-    }
-
-    struct wlr_render_pass *pass = wlr_renderer_begin_buffer_pass(renderer, gpu, NULL);
-    if (!pass) {
-        wlr_log(WLR_ERROR, "[PREVIEW] Copy failed: could not begin buffer pass");
-        wlr_buffer_drop(gpu);
-        wlr_buffer_unlock(buffer);
-        zsingularity_preview_frame_v1_send_failed(resource);
-        return;
-    }
-
-    wlr_render_pass_add_rect(pass, &(struct wlr_render_rect_options){
-        .box = { .width = buffer->width, .height = buffer->height },
-        .color = { .r = 0, .g = 0, .b = 0, .a = 0 }
-    });
-
-    struct preview_render_ctx ctx = {
-        .pass = pass,
-        .scale_x = (double)buffer->width / (double)base_w,
-        .scale_y = (double)buffer->height / (double)base_h,
-    };
-    wlr_surface_for_each_surface(surface, preview_render_surface, &ctx);
-
-    if (!wlr_render_pass_submit(pass)) {
-        wlr_log(WLR_ERROR, "[PREVIEW] Copy failed: render pass submit failed");
-        wlr_buffer_drop(gpu);
-        wlr_buffer_unlock(buffer);
-        zsingularity_preview_frame_v1_send_failed(resource);
-        return;
-    }
-
-    struct wlr_texture *gpu_texture = wlr_texture_from_buffer(renderer, gpu);
-    if (!gpu_texture) {
-        wlr_log(WLR_ERROR, "[PREVIEW] Copy failed: could not create readback texture");
-        wlr_buffer_drop(gpu);
-        wlr_buffer_unlock(buffer);
-        zsingularity_preview_frame_v1_send_failed(resource);
-        return;
-    }
-
-    void *data;
-    uint32_t format;
-    size_t stride;
-    bool ok = false;
-    if (wlr_buffer_begin_data_ptr_access(buffer, WLR_BUFFER_DATA_PTR_ACCESS_WRITE, &data, &format, &stride)) {
-        struct wlr_texture_read_pixels_options opts = {
-            .data = data,
-            .format = format,
-            .stride = (uint32_t)stride,
-            .src_box = { .width = buffer->width, .height = buffer->height },
-        };
-        ok = wlr_texture_read_pixels(gpu_texture, &opts);
-        wlr_buffer_end_data_ptr_access(buffer);
-    }
-
-    wlr_texture_destroy(gpu_texture);
-    wlr_buffer_drop(gpu);
-    wlr_buffer_unlock(buffer);
-
-    if (ok) {
         zsingularity_preview_frame_v1_send_ready(resource);
-    } else {
-        wlr_log(WLR_ERROR, "[PREVIEW] Copy failed: read_pixels failed");
-        zsingularity_preview_frame_v1_send_failed(resource);
+        return;
     }
+
+    wlr_log(WLR_ERROR, "[PREVIEW] All capture methods failed");
+    zsingularity_preview_frame_v1_send_failed(resource);
+    wlr_buffer_unlock(buffer);
 }
 
 static const struct zsingularity_preview_frame_v1_interface frame_impl = {
