@@ -135,6 +135,14 @@ set_initial_position(struct view *view)
 			&& view == server.grabbed_view) {
 		/* Reposition the view while anchoring it to cursor */
 		interactive_anchor_to_cursor(&view->pending);
+		wlr_log(WLR_INFO, "[issue78] late-position: cursor=%d,%d grab=%d,%d "
+			"grab_box=%d,%d %dx%d -> pending=%d,%d %dx%d",
+			(int)server.seat.cursor->x, (int)server.seat.cursor->y,
+			(int)server.grab_x, (int)server.grab_y,
+			server.grab_box.x, server.grab_box.y,
+			server.grab_box.width, server.grab_box.height,
+			view->pending.x, view->pending.y,
+			view->pending.width, view->pending.height);
 	} else {
 		struct view *parent = xdg_toplevel_view_get_parent(view);
 		if (parent) {

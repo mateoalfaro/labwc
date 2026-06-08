@@ -291,6 +291,15 @@ process_cursor_move(uint32_t time)
 			.height = view->natural_geometry.height,
 		};
 		interactive_anchor_to_cursor(&new_geo);
+		wlr_log(WLR_INFO, "[issue78] untile move: cursor=%d,%d grab=%d,%d "
+			"grab_box=%d,%d %dx%d natural=%d,%d %dx%d -> geo=%d,%d %dx%d",
+			(int)server.seat.cursor->x, (int)server.seat.cursor->y,
+			(int)server.grab_x, (int)server.grab_y,
+			server.grab_box.x, server.grab_box.y,
+			server.grab_box.width, server.grab_box.height,
+			view->natural_geometry.x, view->natural_geometry.y,
+			view->natural_geometry.width, view->natural_geometry.height,
+			new_geo.x, new_geo.y, new_geo.width, new_geo.height);
 		/* Shaded clients will not process resize events until unshaded */
 		view_set_shade(view, false);
 		view_set_maximized(view, VIEW_AXIS_NONE);
