@@ -6,6 +6,7 @@
 #include "view.h"
 #include "output.h"
 #include "snap.h" // Needed for enum lab_edge
+#include "workspaces.h"
 
 struct singularity_tiling_manager {
     struct wl_global *global;
@@ -99,11 +100,33 @@ static void manager_handle_get_geometry(struct wl_client *client, struct wl_reso
         view->maximized ? 1u : 0u, view->fullscreen ? 1u : 0u, out);
 }
 
+static void manager_handle_move_to_workspace(struct wl_client *client, struct wl_resource *resource, struct wl_resource *toplevel_resource, uint32_t workspace_index) {
+    struct wlr_foreign_toplevel_handle_v1 *toplevel = wl_resource_get_user_data(toplevel_resource);
+    struct view *view = toplevel ? toplevel->data : NULL;
+    if (!view) {
+        return;
+    }
+    struct workspace *target = NULL;
+    uint32_t i = 0;
+    struct workspace *ws;
+    wl_list_for_each(ws, &server.workspaces.all, link) {
+        if (i == workspace_index) {
+            target = ws;
+            break;
+        }
+        i++;
+    }
+    if (target) {
+        view_move_to_workspace(view, target);
+    }
+}
+
 static const struct zsingularity_tiling_manager_v1_interface manager_impl = {
     .get_geometry = manager_handle_get_geometry,
     .set_geometry = manager_handle_set_geometry,
     .set_tiled = manager_handle_set_tiled,
     .snap_view = manager_handle_snap_view,
+    .move_to_workspace = manager_handle_move_to_workspace,
 };
 
 static void bind_manager(struct wl_client *client, void *data, uint32_t version, uint32_t id) {
@@ -114,5 +137,5 @@ static void bind_manager(struct wl_client *client, void *data, uint32_t version,
 
 void singularity_tiling_init(void) {
     struct singularity_tiling_manager *manager = calloc(1, sizeof(*manager));
-    manager->global = wl_global_create(server.wl_display, &zsingularity_tiling_manager_v1_interface, 2, manager, bind_manager);
+    manager->global = wl_global_create(server.wl_display, &zsingularity_tiling_manager_v1_interface, 3, manager, bind_manager);
 }

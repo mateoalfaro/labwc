@@ -4,7 +4,7 @@
     Copyright © 2024 Singularity Desktop
   </copyright>
 
-  <interface name="zsingularity_tiling_manager_v1" version="2">
+  <interface name="zsingularity_tiling_manager_v1" version="3">
     <description summary="tiling window management">
       This interface allows a client to manage window geometry for tiling purposes.
     </description>
@@ -71,6 +71,16 @@
       </description>
       <arg name="toplevel" type="object" interface="zwlr_foreign_toplevel_handle_v1"/>
       <arg name="direction" type="uint" enum="snap_direction"/>
+    </request>
+
+    <request name="move_to_workspace" since="3">
+      <description summary="move window to workspace">
+        Moves a toplevel to the workspace at the given zero-based index,
+        without requiring it to be focused. Used by the overview to drag a
+        window onto another workspace.
+      </description>
+      <arg name="toplevel" type="object" interface="zwlr_foreign_toplevel_handle_v1"/>
+      <arg name="workspace" type="uint"/>
     </request>
   </interface>
 </protocol>
